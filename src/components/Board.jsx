@@ -25,6 +25,27 @@ function isValidBoard(b) {
   );
 }
 
+function getStatusFromColumnTitle(title = "", columnIndex = 0) {
+  const t = String(title || "").toLowerCase();
+  if (!t) {
+    if (columnIndex === 0) return "todo";
+    if (columnIndex === 1) return "inprogress";
+    return "done";
+  }
+
+  if (["todo", "to do", "backlog"].some(a => t.includes(a))) return "todo";
+  if (["in progress", "inprogress", "doing"].some(a => t.includes(a))) return "inprogress";
+  if (["done", "completed", "complete"].some(a => t.includes(a))) return "done";
+
+  if (t.includes("todo") || t.includes("to-do")) return "todo";
+  if (t.includes("progress") || t.includes("inprogress") || t.includes("doing")) return "inprogress";
+  if (t.includes("done") || t.includes("complete") || t.includes("finished")) return "done";
+
+  if (columnIndex === 0) return "todo";
+  if (columnIndex === 1) return "inprogress";
+  return "done";
+}
+
 export default function Board({ searchQuery = "" }) {
   const [board, setBoard] = useLocalStorage("kanban-board", initialBoard);
   const [openAdd, setOpenAdd] = useState(false);
@@ -78,7 +99,7 @@ export default function Board({ searchQuery = "" }) {
     }
 
     const newColumns = Object.fromEntries(
-      Object.entries(board.columns).map(([colId, col]) => [colId, { ...col, cardIds: col.cardIds.filter((cid) => cid !== updated.id) }])
+      Object.entries(board.columns).map(([colId, col]) => [colId, { ...col, cardIds: (col.cardIds || []).filter((cid) => cid !== updated.id) }])
     );
 
     if (!newColumns[targetColId].cardIds.includes(updated.id)) {
@@ -94,35 +115,45 @@ export default function Board({ searchQuery = "" }) {
 
     try {
       if (type === "column") {
-        const newColOrder = Array.from(board.columnOrder);
+        const newColOrder = Array.from(board.columnOrder || []);
         newColOrder.splice(source.index, 1);
         newColOrder.splice(destination.index, 0, draggableId);
         setBoard({ ...board, columnOrder: newColOrder });
         return;
       }
 
-      const startCol = board.columns[source.droppableId];
-      const finishCol = board.columns[destination.droppableId];
+      const startCol = board.columns?.[source?.droppableId];
+      const finishCol = board.columns?.[destination?.droppableId];
       if (!startCol || !finishCol) return;
 
       if (startCol === finishCol) {
-        const newCardIds = Array.from(startCol.cardIds);
+        const newCardIds = Array.from(startCol.cardIds || []);
         newCardIds.splice(source.index, 1);
         newCardIds.splice(destination.index, 0, draggableId);
         const newCol = { ...startCol, cardIds: newCardIds };
-        setBoard({ ...board, columns: { ...board.columns, [newCol.id]: newCol } });
+        setBoard({ ...board, columns: { ...(board.columns || {}), [newCol.id]: newCol } });
         return;
       }
 
-      const startCardIds = Array.from(startCol.cardIds);
+      const startCardIds = Array.from(startCol.cardIds || []);
       startCardIds.splice(source.index, 1);
       const newStart = { ...startCol, cardIds: startCardIds };
 
-      const finishCardIds = Array.from(finishCol.cardIds);
+      const finishCardIds = Array.from(finishCol.cardIds || []);
       finishCardIds.splice(destination.index, 0, draggableId);
       const newFinish = { ...finishCol, cardIds: finishCardIds };
 
-      setBoard({ ...board, columns: { ...board.columns, [newStart.id]: newStart, [newFinish.id]: newFinish } });
+      const colOrder = board.columnOrder || Object.keys(board.columns || {});
+      const destIndex = colOrder.indexOf(finishCol.id);
+      const newStatus = getStatusFromColumnTitle(finishCol.title, destIndex);
+
+      const updatedCard = { ...(board.cards?.[draggableId] || {}), status: newStatus };
+
+      setBoard({
+        ...board,
+        cards: { ...(board.cards || {}), [draggableId]: updatedCard },
+        columns: { ...(board.columns || {}), [newStart.id]: newStart, [newFinish.id]: newFinish },
+      });
     } catch (err) {
       console.error("onDragEnd error:", err);
     }
@@ -130,7 +161,7 @@ export default function Board({ searchQuery = "" }) {
 
   const knownLabels = useMemo(() => {
     const set = new Set();
-    Object.values(board.cards || {}).forEach((c) => (c.labels || []).forEach((l) => set.add(l)));
+    Object.values(board.cards || {}).forEach((c) => (c?.labels || []).forEach((l) => set.add(l)));
     return Array.from(set);
   }, [board.cards]);
 
@@ -164,7 +195,7 @@ export default function Board({ searchQuery = "" }) {
 
   const filteredBoard = useMemo(() => {
     const newColumns = Object.fromEntries(
-      Object.entries(board.columns).map(([colId, col]) => [
+      Object.entries(board.columns || {}).map(([colId, col]) => [
         colId,
         { ...col, cardIds: (col.cardIds || []).filter((cid) => Boolean(filteredCardsMap[cid])) },
       ])
@@ -203,142 +234,277 @@ export default function Board({ searchQuery = "" }) {
         priorityOptions={["High", "Medium", "Low"]}
       />
 
-      <Box sx={{ display: viewMode === "board" ? "block" : "none" }}>
-        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-          <IconButton color="primary" onClick={() => setOpenAdd(true)}>
-            <AddIcon />
-          </IconButton>
+<Box sx={{ display: viewMode === "board" ? "block" : "none" }}>
+  <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+  <IconButton
+  onClick={() => setOpenAdd(true)}
+  sx={{
+    bgcolor: 'primary.light',
+    color: 'white', 
+    '&:hover': {
+      bgcolor: 'primary.main',
+      color: 'white',
+    },
+  }}
+>
+  <AddIcon />
+</IconButton>
+  </Box>
+
+  <DragDropContext onDragEnd={onDragEnd}>
+    <Droppable droppableId="board" direction="horizontal" type="column">
+      {(provided) => (
+        <Box
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          sx={{ display: "flex", gap: 2, overflowX: "auto", pb: 2 }}
+        >
+          {filteredBoard.columnOrder.map((colId, index) => {
+            const column = filteredBoard.columns[colId];
+            const cards = (column?.cardIds || [])
+              .map((id) => board.cards?.[id])
+              .filter(Boolean);
+
+            return (
+              <Column
+                key={column.id}
+                column={column}
+                cards={cards}
+                index={index}
+                board={board}
+                setBoard={setBoard}
+                onCardClick={(card) => openCard(card)}
+              />
+            );
+          })}
+
+          {provided.placeholder}
         </Box>
+      )}
+    </Droppable>
+  </DragDropContext>
+</Box>
 
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="board" direction="horizontal" type="column">
-            {(provided) => (
-              <div
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                style={{ display: "block", width: "100%" }}
-              >
-                <Grid container spacing={2} sx={{ overflowX: "auto", pb: 2 }}>
-                  {filteredBoard.columnOrder.map((colId, index) => {
-                    const column = filteredBoard.columns[colId];
-                    const cards = (column?.cardIds || []).map((id) => board.cards?.[id]).filter(Boolean);
-                    return (
-                      <Column
-                        key={column.id}
-                        column={column}
-                        cards={cards}
-                        index={index}
-                        board={board}
-                        setBoard={setBoard}
-                        onCardClick={(card) => openCard(card)}
-                      />
-                    );
-                  })}
-                </Grid>
-
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
-      </Box>
-
+      {/* grid view */}
       {viewMode === "grid" && (
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 2 }}>
-          {Object.values(filteredCardsMap).map((card) => (
-            <Paper
-              key={card.id}
-              elevation={3}
-              onClick={() => openCard(card)}
-              sx={{
-                p: 2,
-                borderRadius: 2,
-                cursor: "pointer",
-                transition: "transform 180ms, box-shadow 180ms",
-                "&:hover": { transform: "translateY(-6px)", boxShadow: "0 18px 40px rgba(2,6,23,0.12)" },
-              }}
-            >
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>
-                {card.title}
-              </Typography>
-              <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.75, mb: 1 }}>
-                {card.description}
-              </Typography>
+  <Box
+    sx={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+      gap: 3,
+      p: 1,
+    }}
+  >
+    {Object.values(filteredCardsMap).map((card) => (
+      <Paper
+        key={card.id}
+        elevation={4}
+        onClick={() => openCard(card)}
+        sx={{
+          p: 2.5,
+          borderRadius: 3,
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          transition: "transform 0.2s, box-shadow 0.2s",
+          "&:hover": {
+            transform: "translateY(-8px)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.08)",
+          },
+        }}
+      >
+        {/* Title */}
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+            mb: 1,
+            color: "text.primary",
+            lineHeight: 1.3,
+            wordBreak: "break-word",
+          }}
+        >
+          {card.title}
+        </Typography>
 
-              <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "space-between" }}>
-                <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-                  {(card.labels || []).slice(0, 3).map((l, i) => (
-                    <Chip key={i} label={l} size="small" sx={{ borderRadius: 1 }} />
-                  ))}
-                </Box>
+        {/* Description */}
+        <Typography
+          variant="body2"
+          sx={{
+            color: "text.secondary",
+            mb: 2,
+            minHeight: "50px",
+            lineHeight: 1.4,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+          }}
+        >
+          {card.description || "No description provided."}
+        </Typography>
 
-                <Chip
-                  label={card.status ? card.status.toUpperCase() : "TODO"}
-                  size="small"
-                  sx={{
-                    px: 1,
-                    fontWeight: 800,
-                    borderRadius: 1.5,
-                    bgcolor:
-                      card.status === "done" ? "success.main" : card.status === "inprogress" ? "warning.main" : "primary.main",
-                    color: "white",
-                  }}
-                />
-              </Box>
-            </Paper>
-          ))}
+        {/* Labels and Status */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mt: "auto",
+          }}
+        >
+          {/* Labels */}
+          <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+            {(card.labels || []).slice(0, 3).map((l, i) => (
+              <Chip
+                key={i}
+                label={l}
+                size="small"
+                sx={{ borderRadius: 1.5, fontWeight: 500 }}
+              />
+            ))}
+            {(card.labels || []).length > 3 && (
+              <Chip
+                label={`+${card.labels.length - 3}`}
+                size="small"
+                sx={{ borderRadius: 1.5, fontWeight: 500 }}
+              />
+            )}
+          </Box>
+
+          {/* Status */}
+          <Chip
+            label={card.status ? card.status.toUpperCase() : "TODO"}
+            size="small"
+            sx={{
+              px: 2,
+              fontWeight: 700,
+              borderRadius: "50px",
+              bgcolor:
+                card.status === "done"
+                  ? "success.main"
+                  : card.status === "inprogress"
+                  ? "warning.main"
+                  : "primary.main",
+              color: "white",
+              textTransform: "uppercase",
+              fontSize: "0.75rem",
+            }}
+          />
         </Box>
-      )}
+      </Paper>
+    ))}
+  </Box>
+)}
 
+
+      {/* list view */}
       {viewMode === "list" && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          {Object.values(filteredCardsMap).map((card) => (
-            <Paper
-              key={card.id}
-              elevation={1}
-              onClick={() => openCard(card)}
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                p: 2,
-                borderRadius: 2,
-                cursor: "pointer",
-                "&:hover": { boxShadow: "0 12px 30px rgba(2,6,23,0.08)" },
-              }}
-            >
-              <Box>
-                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
-                  {card.title}
-                </Typography>
-                <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                  {card.description}
-                </Typography>
-                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>{(card.labels || []).map((l, i) => <Chip key={i} label={l} size="small" />)}</Box>
-              </Box>
+  <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: 1 }}>
+    {Object.values(filteredCardsMap).map((card) => (
+      <Paper
+        key={card.id}
+        elevation={3}
+        onClick={() => openCard(card)}
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          p: 2.5,
+          borderRadius: 3,
+          cursor: "pointer",
+          transition: "transform 0.2s, box-shadow 0.2s",
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: "0 15px 40px rgba(0,0,0,0.08)",
+          },
+        }}
+      >
+        {/* Left side: title, description, labels */}
+        <Box sx={{ flex: 1, pr: 2 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontWeight: 700,
+              mb: 1,
+              color: "text.primary",
+              lineHeight: 1.3,
+              wordBreak: "break-word",
+            }}
+          >
+            {card.title}
+          </Typography>
 
-              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                  {(card.due || "")}
-                </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: "text.secondary",
+              mb: 1.5,
+              lineHeight: 1.4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+            }}
+          >
+            {card.description || "No description provided."}
+          </Typography>
 
-                <Chip
-                  label={card.status ? card.status.toUpperCase() : "TODO"}
-                  size="small"
-                  sx={{
-                    px: 1,
-                    fontWeight: 800,
-                    borderRadius: 1.5,
-                    bgcolor:
-                      card.status === "done" ? "success.main" : card.status === "inprogress" ? "warning.main" : "primary.main",
-                    color: "white",
-                  }}
-                />
-              </Box>
-            </Paper>
-          ))}
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {(card.labels || []).map((label, i) => (
+              <Chip
+                key={i}
+                label={label}
+                size="small"
+                sx={{ borderRadius: 1.5, fontWeight: 500 }}
+              />
+            ))}
+          </Box>
         </Box>
-      )}
+
+        {/* Right side: due date & status */}
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 1,
+            minWidth: "80px",
+          }}
+        >
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            {card.due || ""}
+          </Typography>
+
+          <Chip
+            label={card.status ? card.status.toUpperCase() : "TODO"}
+            size="small"
+            sx={{
+              px: 2,
+              fontWeight: 700,
+              borderRadius: "50px",
+              bgcolor:
+                card.status === "done"
+                  ? "success.main"
+                  : card.status === "inprogress"
+                  ? "warning.main"
+                  : "primary.main",
+              color: "white",
+              textTransform: "uppercase",
+              fontSize: "0.75rem",
+            }}
+          />
+        </Box>
+      </Paper>
+    ))}
+  </Box>
+)}
+
+
 
       <AddColumnDialog open={openAdd} onClose={() => setOpenAdd(false)} board={board} setBoard={setBoard} />
       <CardModal
@@ -354,3 +520,5 @@ export default function Board({ searchQuery = "" }) {
     </Box>
   );
 }
+
+

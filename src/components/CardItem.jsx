@@ -9,29 +9,17 @@ import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import CalendarTodayIcon from "@mui/icons-material/CalendarToday";
-import EditCardDrawer from "./dialogs/EditCardDrawer";
 import Tooltip from "@mui/material/Tooltip";
 import Box from "@mui/material/Box";
 import dayjs from "dayjs";
+import EditCardDrawer from "./dialogs/EditCardDrawer";
 
-export default function CardItem({
-  card,
-  index,
-  board,
-  setBoard,
-  onCardClick,
-}) {
+export default function CardItem({ card, index, board, setBoard, onCardClick }) {
   const [openEdit, setOpenEdit] = useState(false);
 
   if (!card) return null;
 
-  const priorityColor = (p) => {
-    if (!p) return "#E5E7EB"; 
-    if (String(p).toLowerCase() === "high") return "#F97316";
-    if (String(p).toLowerCase() === "medium") return "#F59E0B";
-    if (String(p).toLowerCase() === "low") return "#10B981";
-    return "#E5E7EB";
-  };
+  
 
   const handleCardClick = () => {
     if (onCardClick) return onCardClick(card);
@@ -41,10 +29,8 @@ export default function CardItem({
   const dueRaw = card.due ?? card.dueDate ?? null;
   const dueText = dueRaw ? dayjs(dueRaw).format("MMM D") : null;
 
-  const draggableId = String(card.id);
-
   return (
-    <Draggable draggableId={draggableId} index={index}>
+    <Draggable draggableId={String(card.id)} index={index} isDragDisabled={false}>
       {(provided, snapshot) => {
         const providedStyle = provided?.draggableProps?.style || {};
         return (
@@ -52,10 +38,7 @@ export default function CardItem({
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            style={{
-              marginBottom: 10,
-              ...providedStyle,
-            }}
+            style={{ marginBottom: 10, ...providedStyle }}
           >
             <MuiCard
               variant="outlined"
@@ -73,6 +56,7 @@ export default function CardItem({
                 position: "relative",
               }}
             >
+              {/* Priority bar */}
               <Box
                 sx={{
                   position: "absolute",
@@ -80,7 +64,7 @@ export default function CardItem({
                   top: 0,
                   bottom: 0,
                   width: 6,
-                  bgcolor: priorityColor(card.priority),
+                  //bgcolor: priorityColor(card.priority),
                   borderTopLeftRadius: 8,
                   borderBottomLeftRadius: 8,
                 }}
@@ -109,11 +93,12 @@ export default function CardItem({
                       </Typography>
                     )}
 
+                    {/* Labels */}
                     <Stack direction="row" spacing={0.5} sx={{ mt: 1, flexWrap: "wrap", gap: 0.5 }}>
-                      {(card.labels || []).slice(0, 3).map((l, i) => (
+                      {(card.labels || []).slice(0, 3).map((label, i) => (
                         <Chip
                           key={i}
-                          label={l}
+                          label={label}
                           size="small"
                           sx={{
                             height: 22,
@@ -125,6 +110,7 @@ export default function CardItem({
                     </Stack>
                   </Box>
 
+                  {/* Edit button */}
                   <IconButton
                     size="small"
                     onClick={(e) => {
@@ -138,6 +124,7 @@ export default function CardItem({
                   </IconButton>
                 </Stack>
 
+                {/* Due date & assignees */}
                 <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
                   <Stack direction="row" spacing={1} alignItems="center">
                     {dueText && (
@@ -168,6 +155,7 @@ export default function CardItem({
               </CardContent>
             </MuiCard>
 
+            {/* Edit drawer */}
             <EditCardDrawer
               open={openEdit}
               onClose={() => setOpenEdit(false)}

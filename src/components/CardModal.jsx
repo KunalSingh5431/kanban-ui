@@ -187,10 +187,10 @@ export default function CardModal({
                 onChange={(e, v) => v && setStatus(v)}
                 size="small"
                 sx={{
-                  borderRadius: 9999,
+                  
                   "& .MuiToggleButton-root": {
                     textTransform: "none",
-                    borderRadius: 9999,
+                    
                     px: 2,
                   },
                   "& .Mui-selected": {

@@ -33,15 +33,6 @@ export default function SideDrawer({ activity = [] }) {
     () => [
       { id: "home", label: "Home", icon: <HomeIcon />, to: "/" },
       { id: "board", label: "Board", icon: <DashboardIcon />, to: "/board" },
-      { id: "search", label: "Search", icon: <SearchIcon />, to: "/search" },
-      { id: "filters", label: "Filters", icon: <FilterListIcon />, to: "/filters" },
-      { id: "labels", label: "Labels", icon: <LabelIcon />, to: "/labels" },
-      { id: "activity", label: "Activity", icon: <TimelineIcon />, to: "/activity", badge: activity?.length || 0 },
-      { id: "analytics", label: "Analytics", icon: <AnalyticsIcon />, to: "/analytics" },
-      { id: "calendar", label: "Calendar", icon: <CalendarTodayIcon />, to: "/calendar" },
-      { id: "integrations", label: "Integrations", icon: <ExtensionIcon />, to: "/integrations" },
-      { id: "settings", label: "Settings", icon: <SettingsIcon />, to: "/settings" },
-      { id: "help", label: "Help", icon: <HelpOutlineIcon />, to: "/help" },
     ],
     [activity]
   );
