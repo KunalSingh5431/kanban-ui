@@ -3,8 +3,6 @@ import { createRoot } from 'react-dom/client'
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import App from './App.jsx'
-import "@fullcalendar/common/main.css";
-import "@fullcalendar/daygrid/main.css";
    
 
 
