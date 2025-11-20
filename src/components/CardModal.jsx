@@ -1,21 +1,24 @@
 import React, { useEffect, useState, useRef } from "react";
-import Dialog from "@mui/material/Dialog";
-import DialogTitle from "@mui/material/DialogTitle";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import TextField from "@mui/material/TextField";
-import Button from "@mui/material/Button";
-import Stack from "@mui/material/Stack";
-import MenuItem from "@mui/material/MenuItem";
-import FormControl from "@mui/material/FormControl";
-import Select from "@mui/material/Select";
-import InputLabel from "@mui/material/InputLabel";
-import Chip from "@mui/material/Chip";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import Divider from "@mui/material/Divider";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Stack,
+  MenuItem,
+  FormControl,
+  Select,
+  InputLabel,
+  Chip,
+  Box,
+  Typography,
+  ToggleButton,
+  ToggleButtonGroup,
+  Divider,
+  Paper
+} from "@mui/material";
 
 export default function CardModal({
   open,
@@ -25,13 +28,12 @@ export default function CardModal({
   labelOptions = [],
   priorityOptions = ["High", "Medium", "Low"],
 }) {
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [labels, setLabels] = useState([]); 
+  const [labels, setLabels] = useState([]);
   const [priority, setPriority] = useState("");
   const [status, setStatus] = useState("todo");
-  const [due, setDue] = useState(""); 
+  const [due, setDue] = useState("");
   const labelInputRef = useRef(null);
 
   useEffect(() => {
@@ -52,69 +54,61 @@ export default function CardModal({
     }
   }, [card, open]);
 
-  function addLabelsFromString(str) {
+  const addLabelsFromString = (str) => {
     if (!str) return;
     const parts = str
       .split(",")
       .map((p) => p.trim())
       .filter(Boolean);
-    if (parts.length) {
-      setLabels((prev) => Array.from(new Set([...prev, ...parts])));
-    }
-  }
+    if (parts.length) setLabels((prev) => Array.from(new Set([...prev, ...parts])));
+  };
 
-  function handleLabelKeyDown(e) {
+  const handleLabelKeyDown = (e) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       const value = e.target.value.trim();
-      if (value) {
-        addLabelsFromString(value);
-        e.target.value = "";
-      }
-    } else if (e.key === "Escape") {
-      e.target.blur();
-    }
-  }
+      if (value) addLabelsFromString(value);
+      e.target.value = "";
+    } else if (e.key === "Escape") e.target.blur();
+  };
 
-  function handleLabelBlur(e) {
+  const handleLabelBlur = (e) => {
     const value = (e.target.value || "").trim();
     if (value) {
       addLabelsFromString(value);
       e.target.value = "";
     }
-  }
+  };
 
-  function handleRemoveLabel(l) {
-    setLabels((s) => s.filter((x) => x !== l));
-  }
+  const handleRemoveLabel = (l) => setLabels((s) => s.filter((x) => x !== l));
 
-  function handleSave() {
+  const handleSave = () => {
     if (!title.trim()) {
       alert("Title is required");
       return;
     }
-
-    const normStatus = (status || "todo").toLowerCase();
     const payload = {
       id: card?.id || `card-${Date.now()}`,
       title: title.trim(),
       description: description.trim(),
       labels: labels.filter(Boolean),
       priority: priority || "",
-      status: normStatus,
+      status: status || "todo",
       due: due || null,
     };
-
     onSave && onSave(payload);
     onClose && onClose();
-  }
+  };
 
   return (
     <Dialog open={Boolean(open)} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 800 }}>{card ? "Edit card" : "Add card"}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700, fontSize: 22, bgcolor: "primary.main", color: "white", px: 3, py: 1.5, borderRadius: "8px 8px 0 0" }}>
+        {card ? "Edit Card" : "Add Card"}
+      </DialogTitle>
 
-      <DialogContent dividers>
+      <DialogContent dividers sx={{ px: 3, py: 2 }}>
         <Stack spacing={2}>
+          {/* Title */}
           <TextField
             label="Title"
             value={title}
@@ -122,40 +116,46 @@ export default function CardModal({
             fullWidth
             autoFocus
             required
+            size="medium"
+            sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
           />
 
+          {/* Description */}
           <TextField
             label="Description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             fullWidth
             multiline
-            minRows={3}
+            minRows={4}
+            size="medium"
+            sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
           />
 
+          {/* Labels */}
           <Box>
-            <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
-              Labels — press Enter or comma (, ) to add. Click chip to remove.
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Labels — press Enter or comma to add. Click chip to remove.
             </Typography>
-
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap", mb: 1 }}>
+            <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
               {labels.map((l) => (
-                <Chip key={l} label={l} onDelete={() => handleRemoveLabel(l)} />
+                <Chip key={l} label={l} color="primary" onDelete={() => handleRemoveLabel(l)} />
               ))}
             </Box>
-
             <TextField
-              placeholder="Type label and press Enter"
+              placeholder="Add label..."
               inputRef={labelInputRef}
               onKeyDown={handleLabelKeyDown}
               onBlur={handleLabelBlur}
               fullWidth
               size="small"
+              sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
             />
           </Box>
 
           <Divider sx={{ my: 1 }} />
 
+          {/* Priority & Status */}
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <FormControl fullWidth>
               <InputLabel id="priority-label">Priority</InputLabel>
@@ -164,6 +164,7 @@ export default function CardModal({
                 value={priority}
                 label="Priority"
                 onChange={(e) => setPriority(e.target.value)}
+                sx={{ borderRadius: 2 }}
               >
                 <MenuItem value="">
                   <em>None</em>
@@ -177,31 +178,24 @@ export default function CardModal({
             </FormControl>
 
             <Box sx={{ width: "100%" }}>
-              <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 Status
               </Typography>
-
               <ToggleButtonGroup
                 value={status}
                 exclusive
                 onChange={(e, v) => v && setStatus(v)}
                 size="small"
                 sx={{
-                  
-                  "& .MuiToggleButton-root": {
-                    textTransform: "none",
-                    
-                    px: 2,
-                  },
+                  "& .MuiToggleButton-root": { textTransform: "none", px: 3, borderRadius: 2 },
                   "& .Mui-selected": {
-                    boxShadow: "0 8px 30px rgba(59,130,246,0.08)",
                     color: "white",
                     background: (theme) =>
                       status === "todo"
-                        ? "linear-gradient(90deg,#7c3aed,#60a5fa)"
+                        ? theme.palette.info.main
                         : status === "inprogress"
-                        ? "linear-gradient(90deg,#f59e0b,#fb923c)"
-                        : "linear-gradient(90deg,#10b981,#059669)",
+                        ? theme.palette.warning.main
+                        : theme.palette.success.main,
                   },
                 }}
               >
@@ -212,6 +206,7 @@ export default function CardModal({
             </Box>
           </Stack>
 
+          {/* Due Date */}
           <TextField
             label="Due date"
             type="date"
@@ -219,13 +214,15 @@ export default function CardModal({
             onChange={(e) => setDue(e.target.value)}
             InputLabelProps={{ shrink: true }}
             fullWidth
+            size="small"
+            sx={{ "& .MuiInputBase-root": { borderRadius: 2 } }}
           />
         </Stack>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, py: 2 }}>
+      <DialogActions sx={{ px: 3, py: 2, justifyContent: "space-between" }}>
         <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={handleSave}>
+        <Button variant="contained" color="primary" onClick={handleSave} sx={{ borderRadius: 2 }}>
           Save
         </Button>
       </DialogActions>

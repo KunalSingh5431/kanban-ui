@@ -5,61 +5,14 @@ import Grid from "@mui/material/Grid";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import Stack from "@mui/material/Stack";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
 
 import CardItem from "./CardItem";
 import AddCardDialog from "./dialogs/AddCardDialog";
 
 export default function Column({ column, cards = [], index, board, setBoard, onCardClick }) {
   const [openAddCard, setOpenAddCard] = useState(false);
-
-  // For menu
-  const [anchorEl, setAnchorEl] = useState(null);
-  const menuOpen = Boolean(anchorEl);
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleDeleteColumn = () => {
-    handleMenuClose(); // close the menu first
-    const newColumns = { ...board.columns };
-    delete newColumns[column.id];
-    const newColumnOrder = board.columnOrder.filter((id) => id !== column.id);
-    const newCards = { ...board.cards };
-    (column.cardIds || []).forEach((cid) => delete newCards[cid]);
-    setBoard({
-      ...board,
-      columns: newColumns,
-      columnOrder: newColumnOrder,
-      cards: newCards,
-    });
-  };
-
-  const handleRenameColumn = () => {
-    handleMenuClose(); // close the menu first
-    const newTitle = prompt("Enter new column name", column.title);
-    if (newTitle) {
-      setBoard({
-        ...board,
-        columns: {
-          ...board.columns,
-          [column.id]: {
-            ...column,
-            title: newTitle,
-          },
-        },
-      });
-    }
-  };
 
   return (
     <Draggable draggableId={String(column.id)} index={index} isDragDisabled={false}>
@@ -71,14 +24,16 @@ export default function Column({ column, cards = [], index, board, setBoard, onC
           {...provided.draggableProps}
         >
           <Paper elevation={3} sx={{ p: 2 }}>
+            {/* Column Header */}
             <Box
               sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-              {...provided.dragHandleProps} // Only header is draggable
+              {...provided.dragHandleProps}
             >
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 {column.title}
               </Typography>
 
+              {/* Add Card Button */}
               <Stack direction="row" spacing={1}>
                 <IconButton
                   size="small"
@@ -92,32 +47,16 @@ export default function Column({ column, cards = [], index, board, setBoard, onC
                 >
                   <AddIcon fontSize="small" />
                 </IconButton>
-
-                {/* Three-dot menu */}
-                <IconButton size="small" onClick={handleMenuOpen}>
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
-
-                <Menu
-                  anchorEl={anchorEl}
-                  open={menuOpen}
-                  onClose={handleMenuClose}
-                  anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "right",
-                  }}
-                  transformOrigin={{
-                    vertical: "top",
-                    horizontal: "right",
-                  }}
-                >
-                  <MenuItem onClick={handleRenameColumn}>Rename</MenuItem>
-                  <MenuItem onClick={handleDeleteColumn}>Delete</MenuItem>
-                </Menu>
               </Stack>
             </Box>
 
-            <Droppable droppableId={String(column.id)} type="card" isDropDisabled={false} isCombineEnabled={false}>
+            {/* Cards List */}
+            <Droppable
+              droppableId={String(column.id)}
+              type="card"
+              isDropDisabled={false}
+              isCombineEnabled={false}
+            >
               {(providedDrop) => (
                 <Box
                   ref={providedDrop.innerRef}
@@ -140,6 +79,7 @@ export default function Column({ column, cards = [], index, board, setBoard, onC
             </Droppable>
           </Paper>
 
+          {/* Add Card Dialog */}
           <AddCardDialog
             open={openAddCard}
             onClose={() => setOpenAddCard(false)}
